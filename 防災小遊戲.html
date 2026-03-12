@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>防災避難包互動小遊戲</title>
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+    <style>
+        body {
+            font-family: "Microsoft JhengHei", sans-serif;
+            background-color: #e8f5e9;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            margin: 0;
+            padding: 20px;
+        }
+
+        /* 遊戲主容器 */
+        #game-board {
+            position: relative;
+            width: 500px; 
+            height: 700px;
+            background: url('防災包.jpg') no-repeat center/contain;
+            border: 10px solid white;
+            border-radius: 15px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.2);
+            overflow: hidden;
+            user-select: none;
+        }
+
+        /* 遮罩 */
+        .mask-tag {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            width: 145px;
+            height: 50px;
+            background-color: #64d4b4; 
+            z-index: 5;
+        }
+
+        /* 點擊感應區 */
+        .item-zone {
+            position: absolute;
+            cursor: pointer;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 10;
+        }
+
+        /* 正確紅圈 */
+        .mark-circle {
+            width: 85%;
+            height: 85%;
+            border: 6px solid #ff0000;
+            border-radius: 50%;
+            pointer-events: none;
+        }
+
+        /* 錯誤打叉 */
+        .mark-cross {
+            font-size: 80px;
+            color: #ff0000;
+            font-weight: bold;
+            pointer-events: none;
+            animation: fadeOut 3s forwards;
+        }
+
+        @keyframes fadeOut {
+            0%, 90% { opacity: 1; }
+            100% { opacity: 0; }
+        }
+
+        /* 通關彈窗 */
+        #win-overlay {
+            display: none;
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.9);
+            z-index: 100;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            color: white;
+        }
+
+        .edu-container {
+            width: 400px;
+            background: white;
+            padding: 20px;
+            border-radius: 20px;
+            color: #333;
+            text-align: center;
+        }
+
+        #edu-img {
+            width: 100%;
+            height: auto;
+            border-radius: 10px;
+            margin-bottom: 15px;
+            border: 1px solid #ddd;
+        }
+
+        .nav-row {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 10px;
+        }
+
+        button {
+            padding: 10px 20px;
+            font-size: 16px;
+            cursor: pointer;
+            border: none;
+            border-radius: 8px;
+            background: #ffcc00;
+            font-weight: bold;
+        }
+
+        button:hover { background: #ffdb4d; }
+
+        .restart-btn {
+            margin-top: 20px;
+            width: 100%;
+            background: #444 !important;
+            color: white;
+        }
+    </style>
+</head>
+<body>
+
+    <h2 style="color: #2e7d32;">🎒 防災避難包：找出正確的物品！</h2>
+
+    <div id="game-board">
+        <div class="mask-tag"></div>
+
+        <div class="item-zone" style="top:21%; left:16%; width:16%; height:13%;" onclick="check(this, true)"></div> <div class="item-zone" style="top:21%; left:53%; width:16%; height:13%;" onclick="check(this, true)"></div> <div class="item-zone" style="top:39%; left:19%; width:16%; height:13%;" onclick="check(this, true)"></div> <div class="item-zone" style="top:39%; left:43%; width:18%; height:13%;" onclick="check(this, true)"></div> <div class="item-zone" style="top:57%; left:30%; width:18%; height:13%;" onclick="check(this, true)"></div> <div class="item-zone" style="top:57%; left:75%; width:16%; height:13%;" onclick="check(this, true)"></div> <div class="item-zone" style="top:74%; left:17%; width:18%; height:13%;" onclick="check(this, true)"></div> <div class="item-zone" style="top:74%; left:45%; width:18%; height:13%;" onclick="check(this, true)"></div> <div class="item-zone" style="top:21%; left:36%; width:15%; height:13%;" onclick="check(this, false)"></div> <div class="item-zone" style="top:21%; left:74%; width:15%; height:13%;" onclick="check(this, false)"></div> <div class="item-zone" style="top:39%; left:69%; width:18%; height:13%;" onclick="check(this, false)"></div> <div class="item-zone" style="top:57%; left:12%; width:15%; height:13%;" onclick="check(this, false)"></div> <div class="item-zone" style="top:57%; left:54%; width:15%; height:13%;" onclick="check(this, false)"></div> <div class="item-zone" style="top:74%; left:70%; width:18%; height:13%;" onclick="check(this, false)"></div> </div>
+
+    <audio id="snd-ok" src="https://assets.mixkit.co/active_storage/sfx/2020/2020-preview.mp3"></audio>
+    <audio id="snd-no" src="https://assets.mixkit.co/active_storage/sfx/2017/2017-preview.mp3"></audio>
+
+    <div id="win-overlay">
+        <h1 style="color: #ffcc00; text-shadow: 2px 2px 4px #000;">🎊 恭喜通關！</h1>
+        <div class="edu-container">
+            <img id="edu-img" src="edu1.jpg" alt="教育點">
+            <div style="font-weight: bold; margin-bottom: 10px;">防災小知識學習</div>
+            <div class="nav-row">
+                <button onclick="changeImg(-1)">⬅️ 上一張</button>
+                <button onclick="changeImg(1)">下一張 ➡️</button>
+            </div>
+            <button class="restart-btn" onclick="location.reload()">重新開始遊戲</button>
+        </div>
+    </div>
+
+    <script>
+        let score = 0;
+        const total = 8;
+        const eduImages = ["edu1.jpg", "edu2.jpg", "edu3.jpg", "edu4.jpg", "edu5.jpg", "edu6.jpg", "edu7.jpg"];
+        let currentIdx = 0;
+
+        function check(el, isCorrect) {
+            if (isCorrect) {
+                if (el.dataset.done) return;
+                el.dataset.done = "true";
+                score++;
+                document.getElementById('snd-ok').play();
+                el.innerHTML = '<div class="mark-circle"></div>';
+                
+                if (score === total) {
+                    confetti({ particleCount: 150, spread: 70, origin: { y: 0.6 } });
+                    setTimeout(() => {
+                        document.getElementById('win-overlay').style.display = 'flex';
+                    }, 1000);
+                }
+            } else {
+                document.getElementById('snd-no').play();
+                const x = document.createElement('div');
+                x.className = 'mark-cross';
+                x.innerText = '✘';
+                el.appendChild(x);
+                setTimeout(() => x.remove(), 3000);
+            }
+        }
+
+        function changeImg(step) {
+            currentIdx = (currentIdx + step + eduImages.length) % eduImages.length;
+            document.getElementById('edu-img').src = eduImages[currentIdx];
+        }
+    </script>
+</body>
+</html>
